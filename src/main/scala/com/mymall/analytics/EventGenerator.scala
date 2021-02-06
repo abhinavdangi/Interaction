@@ -23,7 +23,7 @@ object EventGenerator {
     val random = new Random()
     val producer = new KafkaProducer[String, String](getProperties)
     while (true) {
-      // kafka record contains two values: personId and distance from the mall
+      // kafka record contains following values: personId, distance from the mall, mallId
       val value = random.nextInt(500) + "," + random.nextInt(500) + "," + random.nextInt(10)
       val key = DateTime.now().toString()
       println(key + ":::" + value)
