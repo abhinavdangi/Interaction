@@ -8,6 +8,10 @@ import kafka.server.{KafkaConfig, KafkaServerStartable}
 
 object KafkaUtil {
 
+  /**
+    * Sets up kafka properties and starts the broker.
+    * It has a single broker.
+    */
   def startKafka(): Unit = {
 
     val kafkaDir = File.createTempFile(KafkaZKConstants.KAFKA_TEMP_FILE_PREFIX, KafkaZKConstants.TEMP_FILE_SUFFIX)

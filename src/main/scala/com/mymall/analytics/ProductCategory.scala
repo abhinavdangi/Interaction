@@ -6,6 +6,13 @@ import org.apache.spark.sql.functions.{split, udf}
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.{SparkConf, SparkContext}
 
+/**
+  * Processes the data coming in from kafka, and puts back in a different topic. Structured
+  * streaming is used for processing data because it can handle scale with ease.
+  *
+  * The input person data is filtered based on distance and customer data. Finally, product
+  * category is assigned for each person.
+  */
 object ProductCategory {
 
   def main(args: Array[String]): Unit = {
@@ -75,6 +82,14 @@ object ProductCategory {
     query.awaitTermination()
   }
 
+  /**
+    * Udf for getting product category based on input data
+    * @param gender Male, Female
+    * @param age Age of the person
+    * @param income Income of the person
+    * @param spendingScore Spending as a percent of income of the person
+    * @return Product category
+    */
   def getProductCategory(gender: String, age: String, income: String, spendingScore: String): String = {
     if("Male".equals(gender)){
       if(Integer.parseInt(income)*Integer.parseInt(spendingScore)/100 > 50){

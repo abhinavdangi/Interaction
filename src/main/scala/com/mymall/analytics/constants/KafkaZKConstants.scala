@@ -1,5 +1,8 @@
 package com.mymall.analytics.constants
 
+/**
+  * Contains constants required for Kafka and Zookeeper setup
+ */
 object KafkaZKConstants {
   val ZK_TEMP_FILE_PREFIX = "zookeeper"
   val KAFKA_TEMP_FILE_PREFIX: String = "kafka"

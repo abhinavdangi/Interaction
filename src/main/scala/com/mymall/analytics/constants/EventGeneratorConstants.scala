@@ -1,5 +1,8 @@
 package com.mymall.analytics.constants
 
+/**
+  * Contains constants required for EventGenerator
+  */
 object EventGeneratorConstants {
 
   val BOOTSTRAP_SERVERS = "bootstrap.servers"

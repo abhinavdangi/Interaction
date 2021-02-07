@@ -7,6 +7,9 @@ import org.apache.zookeeper.server.ZooKeeperServerMain
 
 object ZookeeperUtil {
 
+  /**
+    * Sets up zookeeper
+    */
   def startZookeeper(): Unit = {
 
     val zkTmpDir = File.createTempFile(KafkaZKConstants.ZK_TEMP_FILE_PREFIX, KafkaZKConstants.TEMP_FILE_SUFFIX)
