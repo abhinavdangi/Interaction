@@ -10,7 +10,7 @@ import scala.util.Random
 
 /**
   * Class to generate random events. The event structure is:
-  * <personId>,<distanceFromMall>,<mallId>
+  * <personId>,<xCoordinate>,<yCoordinate>
  */
 object EventGenerator {
 
@@ -33,9 +33,9 @@ object EventGenerator {
     * Creates a Kafka Producer and starts producing messages until the process is killed
     * The speed can be controlled using sleep time.
     * personId is generated between 0 and 500.
-    * distanceFromMall is assumed to be coming from the producer. Ideally, the coordinates of the
-    * person should be sent and distance calculated in the backend
-    * mallId is generated between 0 and 9 (supporting 10 malls in the same kafka)
+    * xCoordinate is number generated between 0 and 200
+    * yCoordinate is number generated between 0 and 200
+    * Assumed that Mall is at (100,100)
     * @param args
     */
   def main(args: Array[String]): Unit = {
@@ -44,9 +44,10 @@ object EventGenerator {
     val producer = new KafkaProducer[String, String](getProperties)
     while (true) {
       // kafka record contains following values: personId, distance from the mall, mallId
-      val value = random.nextInt(500) + "," + random.nextInt(500) + "," + random.nextInt(9)
+      val x = random.nextInt(200)
+      val y = random.nextInt(200)
+      val value = random.nextInt(500) + "," + x + "," + y
       val key = DateTime.now().toString()
-      println(key + ":::" + value)
       producer.send(new ProducerRecord(
         topic, key, value))
       producer.flush()

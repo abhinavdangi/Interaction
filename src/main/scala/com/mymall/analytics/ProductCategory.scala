@@ -1,7 +1,11 @@
 package com.mymall.analytics
 
+import java.time
+import java.time.LocalDateTime
+
+import com.mymall.analytics.constants.ConsumerConstants
 import com.mymall.analytics.schema.CustomerInfo
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.{split, udf}
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.{SparkConf, SparkContext}
@@ -10,15 +14,29 @@ import org.apache.spark.{SparkConf, SparkContext}
   * Processes the data coming in from kafka, and puts back in a different topic. Structured
   * streaming is used for processing data because it can handle scale with ease.
   *
-  * The input person data is filtered based on distance and customer data. Finally, product
-  * category is assigned for each person.
+  * The input person data is filtered based on distance and joined with customer data.
+  * Finally, product category is assigned for each person.
   */
 object ProductCategory {
 
-  def main(args: Array[String]): Unit = {
+  var date: LocalDateTime = LocalDateTime.now()
 
-    val path = System.getProperty("user.dir") + "/src/main/resources/Worksheet_Kafka_assignment_Mall_Customers.csv"
-    println(path)
+  /**
+    * Refreshes static customerInfo DF daily
+    * @param spark SparkSession
+    * @param customerInfo DF
+    */
+  def refreshCustomerInfo(spark: SparkSession, customerInfo: DataFrame): Unit = {
+    val currentDate = LocalDateTime.now()
+    val duration = time.Duration.between(currentDate, date)
+    if (duration.toDays > 1) {
+      customerInfo.unpersist()
+    }
+    customerInfo.cache()
+    customerInfo.count()
+  }
+
+  def main(args: Array[String]): Unit = {
 
     val conf = new SparkConf()
     conf.setAppName("kafka_reader-1.0").setMaster("local[*]").setAppName("StreamPersonData")
@@ -26,14 +44,22 @@ object ProductCategory {
     sparkContext.setLogLevel("ERROR")
     val spark = SparkSession.builder().config(conf).master("local").getOrCreate()
 
+    val path = System.getProperty("user.dir") + "/src/main/resources/Worksheet_Kafka_assignment_Mall_Customers.csv"
+    println(path)
+
+    val customerInfo = spark
+      .read
+      .schema(CustomerInfo.getSchema)
+      .csv(path)
+
     import spark.implicits._
 
     val kafkaDf = spark
       .readStream
-      .format("kafka")
-      .option("kafka.bootstrap.servers", "localhost:9092")
-      .option("subscribe", "person_info")
-      .option("failOnDataLoss","false")
+      .format(ConsumerConstants.CONSUMER_KAFKA)
+      .option(ConsumerConstants.KAFKA_BOOTSTRAP_SERVERS, ConsumerConstants.KAFKA_BOOTSTRAP_SERVERS_DEFAULT)
+      .option(ConsumerConstants.KAFKA_SUBSCRIBE, "person_info")
+      .option(ConsumerConstants.FAIL_ON_DATA_LOSS,ConsumerConstants.BOOLEAN_FALSE)
       .load()
       .select("key", "value")
 
@@ -41,18 +67,12 @@ object ProductCategory {
 
     val personInfo = kafkaDf.withColumn("_tmp", split($"value", ",")).select(
       $"_tmp".getItem(0).as("customerId"),
-      $"_tmp".getItem(1).as("distance"),
-      $"_tmp".getItem(2).as("mallId"),
+      $"_tmp".getItem(1).as("xCoordinate"),
+      $"_tmp".getItem(2).as("yCoordinate"),
       $"key".cast(DataTypes.StringType).as("clientTimestamp")
-    ).where("distance < 100")
+    ).where("pow(100-xCoordinate,2) + pow(100-yCoordinate,2) < pow(100,2)")
 
     personInfo.printSchema()
-
-    val customerInfo = spark
-      .read
-      .schema(CustomerInfo.getSchema)
-      .csv(path)
-    customerInfo.printSchema()
 
     val finalCustomers = personInfo.join(customerInfo, Seq("customerId"))
 
@@ -72,14 +92,16 @@ object ProductCategory {
 
     val query = customerWithProductCategory
       .selectExpr("CAST(customerId AS STRING) AS key", "to_json(struct(*)) AS value")
+
+    val stream = query
       .writeStream
-      .format("kafka")
-      .option("kafka.bootstrap.servers", "localhost:9092")
+      .format(ConsumerConstants.PRODUCER_KAFKA)
+      .option(ConsumerConstants.KAFKA_BOOTSTRAP_SERVERS, ConsumerConstants.KAFKA_BOOTSTRAP_SERVERS_DEFAULT)
       .option("checkpointLocation", "/tmp/myMall/analytics/interaction")
       .option("topic", "person_product_category")
       .start()
 
-    query.awaitTermination()
+    stream.awaitTermination()
   }
 
   /**
